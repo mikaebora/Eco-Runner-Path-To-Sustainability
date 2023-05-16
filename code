@@ -1,0 +1,380 @@
+import pygame
+import os
+import time
+import random
+import sys
+from pygame import mixer
+
+
+WIDTH, HEIGHT = 600, 1000
+WIN = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("eco runner")
+
+
+# Background
+screen = pygame.display.set_mode([WIDTH, HEIGHT])
+background = pygame.image.load(os.path.abspath('assets/map4.png')).convert()
+overlap = pygame.image.load(os.path.abspath('assets/map4.png')).convert()
+background = pygame.transform.scale(background, (WIDTH, HEIGHT))
+overlap = pygame.transform.scale(overlap, (WIDTH, HEIGHT))
+b_pos = 0
+o_pos = -HEIGHT
+
+# health bar settings
+health_bar_width = 200
+health_bar_height = 20
+health_bar_pos_x = WIDTH - health_bar_width - 10
+health_bar_pos_y = 10
+health_bar_border_color = (255, 255, 255)
+health_bar_fill_color = (0, 255, 0)
+health = 100
+health_decrease_rate = 0.1
+
+# obstacle settings
+obstacle_width = 64
+obstacle_height = 64
+obstacle_vel = 5
+obstacle_spawn_rate = 15
+obstacles = []
+
+# powerup settings
+powerup_width = 64
+powerup_height = 64
+powerup_vel = 5
+powerup_spawn_rate = 10
+powerup = []
+
+# Game over variables
+game_over = False
+
+title_image = pygame.image.load('assets/try1.png')  # Load the title sprite image
+title_image_rect = title_image.get_rect(center=(WIDTH / 2, HEIGHT / 4))  # Set the position of the title sprite
+
+# music
+pygame.mixer.init()
+pygame.mixer.music.load('assets/Sunshine Airport - Mario Kart 8 Deluxe OST (1).wav')
+pygame.mixer.music.play(-1)
+game_over_sound = pygame.mixer.Sound('assets/Arcade game over sound effect!.wav')
+
+
+class Hero:
+    def __init__(self, x, y, width, height):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.vel = 5
+        self.images = [pygame.image.load(os.path.join('assets', '1.png')),
+                       pygame.image.load(os.path.join('assets', '2.png')),
+                       pygame.image.load(os.path.join('assets', '3.png')),
+                       pygame.image.load(os.path.join('assets', '4.png')),
+                       pygame.image.load(os.path.join('assets', '5.png')),
+                       pygame.image.load(os.path.join('assets', '6.png')),
+                       pygame.image.load(os.path.join('assets', '7.png')),
+                       pygame.image.load(os.path.join('assets', '8.png')),
+                       pygame.image.load(os.path.join('assets', '9.png'))]
+        self.image_index = 0
+        self.animation_speed = 0.1
+        self.health = 100
+        self.powerup_sound = mixer.Sound('assets/Correct Answer Sound Effect.wav')
+        self.obstacle_sound = mixer.Sound('assets/wrong.wav')
+
+    def draw(self, win):
+        # Update the animation frame index
+        self.image_index += self.animation_speed
+        if self.image_index >= len(self.images):
+            self.image_index = 0
+
+        # Draw the current animation frame
+        current_image = self.images[int(self.image_index)]
+        win.blit(current_image, (self.x, self.y))
+
+    def draw_health_bar(self, win):
+        # Calculate the current health bar fill width based on the current health
+        current_health_bar_width = (self.health / 100) * health_bar_width
+
+        # Draw the health bar border
+        pygame.draw.rect(win, health_bar_border_color,
+                         (health_bar_pos_x, health_bar_pos_y, health_bar_width, health_bar_height), 2)
+
+        # Draw the health bar fill
+        pygame.draw.rect(win, health_bar_fill_color,
+                         (health_bar_pos_x, health_bar_pos_y, current_health_bar_width, health_bar_height))
+
+    def check_collision(self, obstacle):
+        # Check if the hero collides with the given obstacle
+        hero_rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        obstacle_rect = pygame.Rect(obstacle.x, obstacle.y, obstacle.width, obstacle.height)
+        if isinstance(obstacle, HealthPowerUp):
+            return hero_rect.colliderect(obstacle_rect) and obstacle.y < self.y
+        else:
+            return hero_rect.colliderect(obstacle_rect)
+
+    def collect_powerup(self):
+        # Play the power-up music
+        self.powerup_sound.play()
+
+    def collect_obstacle(self):
+        self.obstacle_sound.play()
+
+
+class Obstacle:
+    def __init__(self, x, y, width, height):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.vel = obstacle_vel
+        self.image = pygame.image.load(os.path.abspath('assets/Trash-3.png')).convert_alpha()
+        self.image = pygame.transform.scale(self.image, (self.width, self.height))
+
+    def draw(self, win):
+        win.blit(self.image, (self.x, self.y))
+
+    def update(self):
+        # Move the obstacle down the screen
+        self.y += self.vel
+
+
+class HealthPowerUp:
+    def __init__(self, x, y, width, height):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.vel = obstacle_vel
+        self.image = pygame.image.load(os.path.abspath('assets/Broccoli-3.png')).convert_alpha()
+        self.image = pygame.transform.scale(self.image, (self.width, self.height))
+
+    def draw(self, win):
+        win.blit(self.image, (self.x, self.y))
+
+    def update(self):
+        # Move the powerup down the screen
+        self.y += self.vel
+
+
+powerup_min_x = 50  # Minimum x-coordinate for power-up spawn
+powerup_max_x = WIDTH - obstacle_width - 50  # Maximum x-coordinate for power-up spawn
+
+obstacle_min_x = 100  # Minimum x-coordinate for obstacle spawn
+obstacle_max_x = WIDTH - obstacle_width - 100  # Maximum x-coordinate for obstacle spawn
+
+
+def main_menu():
+    title_image = pygame.image.load('assets/try1.png')
+    title_image_rect = title_image.get_rect(center=(WIDTH / 2, HEIGHT / 3))
+
+    start_button_font = pygame.font.SysFont('Arial', 40)
+    start_button_text = start_button_font.render('Start', True, (255, 255, 255))
+    start_button_text_rect = start_button_text.get_rect(center=(WIDTH / 2, HEIGHT / 2 - 60))
+
+    options_button_font = pygame.font.SysFont('Arial', 40)
+    options_button_text = options_button_font.render('Options', True, (255, 255, 255))
+    options_button_text_rect = options_button_text.get_rect(center=(WIDTH / 2, HEIGHT / 2 + 10))
+
+    quit_button_font = pygame.font.SysFont('Arial', 40)
+    quit_button_text = quit_button_font.render('Quit', True, (255, 255, 255))
+    quit_button_text_rect = quit_button_text.get_rect(center=(WIDTH / 2, HEIGHT / 2 + 80))
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if start_button_text_rect.collidepoint(pygame.mouse.get_pos()):
+                    return
+                elif options_button_text_rect.collidepoint(pygame.mouse.get_pos()):
+                    options_menu()
+                elif quit_button_text_rect.collidepoint(pygame.mouse.get_pos()):
+                    pygame.quit()
+
+        WIN.blit(background, (0, 0))
+        WIN.blit(title_image, title_image_rect)
+        pygame.draw.rect(WIN, (255, 255, 255), start_button_text_rect, 2)
+        WIN.blit(start_button_text, start_button_text_rect)
+        pygame.draw.rect(WIN, (255, 255, 255), options_button_text_rect, 2)
+        WIN.blit(options_button_text, options_button_text_rect)
+        pygame.draw.rect(WIN, (255, 255, 255), quit_button_text_rect, 2)
+        WIN.blit(quit_button_text, quit_button_text_rect)
+        screen.blit(title_image, title_image_rect)  # Draw the title sprite
+        pygame.display.update()
+
+
+def options_menu():
+    # Implement your options menu code here...
+    pass
+
+
+def game_over_screen():
+    pygame.mixer.music.stop()
+    font = pygame.font.SysFont('Arial', 80)
+    text = font.render('Game Over', True, (255, 255, 255))
+    text_rect = text.get_rect(center=(WIDTH / 2, HEIGHT / 2))
+
+    # Countdown timer for returning to the main menu
+    countdown_time = 5 # 5 seconds
+    countdown_start = pygame.time.get_ticks()
+
+    while True:
+        current_time = pygame.time.get_ticks()
+        elapsed_time = (current_time - countdown_start) / 1000  # Convert to seconds
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    return
+        if elapsed_time >= countdown_time:
+            return
+
+        WIN.blit(background, (0, 0))
+        WIN.blit(text, text_rect)
+        pygame.display.update()
+
+        # Delay to control the frame rate
+        pygame.time.delay(100)
+
+
+score = 0
+
+
+def main():
+    pygame.init()
+    main_menu()
+
+    global score
+    global obstacles  # Add this line to access the global obstacles list
+    run = True
+    speed = 0.5
+    fps = 144
+    clock = pygame.time.Clock()
+
+    hero = Hero(WIDTH / 2, HEIGHT - 200, 64, 64)
+    obstacle_counter = 0
+    time_since_start = 0
+
+    def redraw_window():
+        WIN.blit(background, (0, b_pos))
+        WIN.blit(overlap, (0, o_pos))
+        hero.draw(WIN)
+        hero.draw_health_bar(WIN)
+        for obstacle in obstacles:
+            obstacle.draw(WIN)
+        score_font = pygame.font.SysFont('Arial', 30)
+        score_text = score_font.render(f"Score: {score}", True, (255, 255, 255))
+        score_text_rect = score_text.get_rect(topright=(WIDTH - 10, 30))
+        WIN.blit(score_text, score_text_rect)
+        pygame.display.update()
+
+    def spawn_obstacle():
+        if len(obstacles) == 0:
+            x = random.randint(obstacle_min_x, obstacle_max_x)
+            y = -obstacle_height
+            obstacle = Obstacle(x, y, obstacle_width, obstacle_height)
+            obstacles.append(obstacle)
+
+    def spawn_powerup():
+        x = random.randint(powerup_min_x, powerup_max_x)
+        y = -obstacle_height
+        powerup = HealthPowerUp(x, y, obstacle_width, obstacle_height)
+        obstacles.append(powerup)
+
+    left_boundary = 0  # Define the left boundary
+    right_boundary = WIDTH - hero.width  # Define the right boundary
+
+    while run:
+        clock.tick(fps)
+
+        global b_pos, o_pos
+        b_pos += speed
+        o_pos += speed
+        if b_pos >= HEIGHT:
+            b_pos = -HEIGHT
+        if o_pos >= HEIGHT:
+            o_pos = -HEIGHT
+
+        hero.health -= health_decrease_rate
+
+        if random.randint(1, obstacle_spawn_rate) == 1:
+            spawn_obstacle()
+
+        if random.randint(1, obstacle_spawn_rate * 10) == 1:
+            spawn_powerup()
+
+        for obstacle in obstacles:
+            obstacle.update()
+
+            if isinstance(obstacle, HealthPowerUp) and hero.check_collision(obstacle):
+                hero.health = min(hero.health + 50, 100)
+                obstacles.remove(obstacle)
+                score += 1
+                hero.collect_powerup()  # Call the method to play the power-up music
+            elif hero.check_collision(obstacle):
+                hero.health = max(hero.health - 20, 0)
+                obstacles.remove(obstacle)
+                shake_start_time = pygame.time.get_ticks()  # Trigger the screen shake effect
+                hero.collect_obstacle()
+
+            if obstacle.y >= HEIGHT:
+                obstacle_counter += 1
+
+            time_since_start += clock.get_time() / 1000
+            speed = 0.8 + 0.1 * time_since_start
+
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT] and hero.x > obstacle_min_x + hero.vel:
+            hero.x -= hero.vel
+        if keys[pygame.K_RIGHT] and hero.x < powerup_max_x - hero.width - hero.vel:
+            hero.x += hero.vel
+
+        # Apply movement limits
+        if hero.x < obstacle_min_x:
+            hero.x = obstacle_min_x
+        elif hero.x > powerup_max_x - hero.width:
+            hero.x = powerup_max_x - hero.width
+
+        redraw_window()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+
+                # Clear the screen
+                screen.fill((0, 0, 0))
+
+                # Update the title animation frame
+                title_image_index += title_animation_speed
+                if title_image_index >= len(title_images):
+                    title_image_index = 0
+
+                # Draw the current title animation frame
+                current_title_image = title_images[int(title_image_index)]
+                title_image_rect = current_title_image.get_rect(center=(WIDTH / 2, HEIGHT / 4))
+                screen.blit(current_title_image, title_image_rect)
+
+                # Draw the buttons
+                screen.blit(start_button_text, start_button_text_rect)
+                screen.blit(options_button_text, options_button_text_rect)
+                screen.blit(quit_button_text, quit_button_text_rect)
+
+                # Update the display
+                pygame.display.flip()
+
+        obstacles = [obstacle for obstacle in obstacles if obstacle.y <= HEIGHT]
+
+        if hero.health <= 0:
+            game_over_sound
+            game_over_sound.play()
+            game_over_screen()
+            break
+
+    pygame.quit()
+
+
+pygame.init()
+main()
+
+
