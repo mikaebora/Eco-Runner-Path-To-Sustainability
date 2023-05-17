@@ -13,8 +13,8 @@ pygame.display.set_caption("eco runner")
 
 # Background
 screen = pygame.display.set_mode([WIDTH, HEIGHT])
-background = pygame.image.load(os.path.abspath('assets/map4.png')).convert()
-overlap = pygame.image.load(os.path.abspath('assets/map4.png')).convert()
+background = pygame.image.load(os.path.abspath('assets/mapfinal.png')).convert()
+overlap = pygame.image.load(os.path.abspath('assets/mapfinal.png')).convert()
 background = pygame.transform.scale(background, (WIDTH, HEIGHT))
 overlap = pygame.transform.scale(overlap, (WIDTH, HEIGHT))
 b_pos = 0
@@ -47,7 +47,7 @@ powerup = []
 # Game over variables
 game_over = False
 
-title_image = pygame.image.load('assets/try1.png')  # Load the title sprite image
+title_image = pygame.image.load('assets/mapfinal.png')  # Load the title sprite image
 title_image_rect = title_image.get_rect(center=(WIDTH / 2, HEIGHT / 4))  # Set the position of the title sprite
 
 # music
@@ -78,7 +78,7 @@ class Hero:
         self.health = 100
         self.powerup_sound = mixer.Sound('assets/Correct Answer Sound Effect.wav')
         self.obstacle_sound = mixer.Sound('assets/wrong.wav')
-
+        
     def draw(self, win):
         # Update the animation frame index
         self.image_index += self.animation_speed
@@ -98,8 +98,16 @@ class Hero:
                          (health_bar_pos_x, health_bar_pos_y, health_bar_width, health_bar_height), 2)
 
         # Draw the health bar fill
-        pygame.draw.rect(win, health_bar_fill_color,
-                         (health_bar_pos_x, health_bar_pos_y, current_health_bar_width, health_bar_height))
+        health_bar_fill_rect = pygame.Rect(health_bar_pos_x, health_bar_pos_y, current_health_bar_width,
+                                           health_bar_height)
+        pygame.draw.rect(win, health_bar_fill_color, health_bar_fill_rect)
+
+        # Draw the red animation on the health bar
+        red_animation_rect = pygame.Rect(health_bar_pos_x + current_health_bar_width, health_bar_pos_y,
+                                         health_bar_width - current_health_bar_width, health_bar_height)
+        red_animation_surface = pygame.Surface(red_animation_rect.size)
+        red_animation_surface.fill((255, 0, 0))
+        win.blit(red_animation_surface, red_animation_rect)
 
     def check_collision(self, obstacle):
         # Check if the hero collides with the given obstacle
@@ -116,6 +124,18 @@ class Hero:
 
     def collect_obstacle(self):
         self.obstacle_sound.play()
+
+        # Create red lines
+        red_line_width = 100
+        red_line_height = HEIGHT
+        left_red_line = pygame.Surface((red_line_width, red_line_height))
+        right_red_line = pygame.Surface((red_line_width, red_line_height))
+        left_red_line.fill((255, 0, 0))
+        right_red_line.fill((255, 0, 0))
+        WIN.blit(left_red_line, (0, 0))
+        WIN.blit(right_red_line, (WIDTH - red_line_width, 50))
+
+        pygame.display.update()
 
 
 class Obstacle:
@@ -161,21 +181,45 @@ obstacle_min_x = 100  # Minimum x-coordinate for obstacle spawn
 obstacle_max_x = WIDTH - obstacle_width - 100  # Maximum x-coordinate for obstacle spawn
 
 
+class Title(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.images = [
+            pygame.image.load('assets/main1.png'),
+            pygame.image.load('assets/main2.png'),
+            pygame.image.load('assets/main3.png'),
+            pygame.image.load('assets/main4.png'),
+            pygame.image.load('assets/main5.png'),
+            pygame.image.load('assets/main6.png'),
+            pygame.image.load('assets/main7.png'),
+            pygame.image.load('assets/main8.png'),
+            pygame.image.load('assets/main9.png'),
+            pygame.image.load('assets/main10.png'),
+            pygame.image.load('assets/main11.png'),
+            pygame.image.load('assets/main12.png'),
+            pygame.image.load('assets/main13.png'),
+            pygame.image.load('assets/main14.png'),
+            pygame.image.load('assets/main15.png'),
+            pygame.image.load('assets/main16.png')]
+        self.index = 0
+        self.animation_speed = 10
+        self.image = self.images[self.index]
+        self.rect = self.image.get_rect(center=(WIDTH / 2, HEIGHT / 2.5))
+        self.frame_count = 0
+
+    def update(self):
+        self.frame_count += 1
+        if self.frame_count >= 10:  # Adjust frame rate here
+            self.frame_count = 0
+            self.index = (self.index + 1) % len(self.images)
+            self.image = self.images[self.index]
+
+
 def main_menu():
-    title_image = pygame.image.load('assets/try1.png')
-    title_image_rect = title_image.get_rect(center=(WIDTH / 2, HEIGHT / 3))
-
-    start_button_font = pygame.font.SysFont('Arial', 40)
-    start_button_text = start_button_font.render('Start', True, (255, 255, 255))
-    start_button_text_rect = start_button_text.get_rect(center=(WIDTH / 2, HEIGHT / 2 - 60))
-
-    options_button_font = pygame.font.SysFont('Arial', 40)
-    options_button_text = options_button_font.render('Options', True, (255, 255, 255))
-    options_button_text_rect = options_button_text.get_rect(center=(WIDTH / 2, HEIGHT / 2 + 10))
-
-    quit_button_font = pygame.font.SysFont('Arial', 40)
-    quit_button_text = quit_button_font.render('Quit', True, (255, 255, 255))
-    quit_button_text_rect = quit_button_text.get_rect(center=(WIDTH / 2, HEIGHT / 2 + 80))
+    title = Title()
+    start_button_image = pygame.image.load('assets/startfin.png')
+    start_button_rect = start_button_image.get_rect(center=(WIDTH / 2, HEIGHT / 1 - 500))
+    all_sprites = pygame.sprite.Group(title)
 
     while True:
         for event in pygame.event.get():
@@ -183,22 +227,14 @@ def main_menu():
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if start_button_text_rect.collidepoint(pygame.mouse.get_pos()):
+                if start_button_rect.collidepoint(pygame.mouse.get_pos()):
                     return
-                elif options_button_text_rect.collidepoint(pygame.mouse.get_pos()):
-                    options_menu()
-                elif quit_button_text_rect.collidepoint(pygame.mouse.get_pos()):
-                    pygame.quit()
+
+        all_sprites.update()
 
         WIN.blit(background, (0, 0))
-        WIN.blit(title_image, title_image_rect)
-        pygame.draw.rect(WIN, (255, 255, 255), start_button_text_rect, 2)
-        WIN.blit(start_button_text, start_button_text_rect)
-        pygame.draw.rect(WIN, (255, 255, 255), options_button_text_rect, 2)
-        WIN.blit(options_button_text, options_button_text_rect)
-        pygame.draw.rect(WIN, (255, 255, 255), quit_button_text_rect, 2)
-        WIN.blit(quit_button_text, quit_button_text_rect)
-        screen.blit(title_image, title_image_rect)  # Draw the title sprite
+        all_sprites.draw(WIN)
+        WIN.blit(start_button_image, start_button_rect)
         pygame.display.update()
 
 
@@ -209,9 +245,10 @@ def options_menu():
 
 def game_over_screen():
     pygame.mixer.music.stop()
-    font = pygame.font.SysFont('Arial', 80)
-    text = font.render('Game Over', True, (255, 255, 255))
-    text_rect = text.get_rect(center=(WIDTH / 2, HEIGHT / 2))
+    # Load the image
+    game_over_image = pygame.image.load('assets/gameover.png')
+
+    image_rect = game_over_image.get_rect(center=(WIDTH / 2, HEIGHT / 2))
 
     # Countdown timer for returning to the main menu
     countdown_time = 5 # 5 seconds
@@ -231,7 +268,7 @@ def game_over_screen():
             return
 
         WIN.blit(background, (0, 0))
-        WIN.blit(text, text_rect)
+        WIN.blit(game_over_image, image_rect)
         pygame.display.update()
 
         # Delay to control the frame rate
@@ -339,11 +376,13 @@ def main():
         redraw_window()
 
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:  # Check for the Esc key press
+                    run = False
+                    break
+            elif event.type == pygame.QUIT:
                 run = False
-
-                # Clear the screen
-                screen.fill((0, 0, 0))
+                break
 
                 # Update the title animation frame
                 title_image_index += title_animation_speed
@@ -357,8 +396,6 @@ def main():
 
                 # Draw the buttons
                 screen.blit(start_button_text, start_button_text_rect)
-                screen.blit(options_button_text, options_button_text_rect)
-                screen.blit(quit_button_text, quit_button_text_rect)
 
                 # Update the display
                 pygame.display.flip()
@@ -372,9 +409,8 @@ def main():
             break
 
     pygame.quit()
+    sys.exit()
 
 
 pygame.init()
 main()
-
-
