@@ -54,7 +54,7 @@ title_image_rect = title_image.get_rect(center=(WIDTH / 2, HEIGHT / 4))  # Set t
 pygame.mixer.init()
 pygame.mixer.music.load('assets/Sunshine Airport - Mario Kart 8 Deluxe OST (1).wav')
 pygame.mixer.music.play(-1)
-game_over_sound = pygame.mixer.Sound('assets/Arcade game over sound effect!.wav')
+game_over_sound = pygame.mixer.Sound('assets/mixkit-retro-arcade-lose-2027.wav')
 
 
 class Hero:
@@ -76,9 +76,9 @@ class Hero:
         self.image_index = 0
         self.animation_speed = 0.1
         self.health = 100
-        self.powerup_sound = mixer.Sound('assets/Correct Answer Sound Effect.wav')
+        self.powerup_sound = mixer.Sound('assets/mixkit-arcade-bonus-alert-767.wav')
         self.obstacle_sound = mixer.Sound('assets/wrong.wav')
-        
+
     def draw(self, win):
         # Update the animation frame index
         self.image_index += self.animation_speed
@@ -289,7 +289,7 @@ def main():
     fps = 144
     clock = pygame.time.Clock()
 
-    hero = Hero(WIDTH / 2, HEIGHT - 200, 64, 64)
+    hero = Hero(WIDTH / 2, HEIGHT - 250, 64, 64)
     obstacle_counter = 0
     time_since_start = 0
 
