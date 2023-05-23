@@ -174,8 +174,8 @@ class HealthPowerUp:
         self.y += self.vel
 
 
-powerup_min_x = 50  # Minimum x-coordinate for power-up spawn
-powerup_max_x = WIDTH - obstacle_width - 50  # Maximum x-coordinate for power-up spawn
+powerup_min_x = 45  # Minimum x-coordinate for power-up spawn
+powerup_max_x = WIDTH - obstacle_width - 45  # Maximum x-coordinate for power-up spawn
 
 obstacle_min_x = 100  # Minimum x-coordinate for obstacle spawn
 obstacle_max_x = WIDTH - obstacle_width - 100  # Maximum x-coordinate for obstacle spawn
